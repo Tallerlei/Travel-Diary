@@ -356,10 +356,76 @@ async function geocodeClusters(clusters) {
   for (const cluster of clusters) {
     if (cluster.locationName) continue; // already done
     const name = await reverseGeocode(cluster.center.lat, cluster.center.lon);
-    // Mutate cluster in place (fine since render pulls from state)
-    cluster.locationName = name;
-    // Trigger re-render
-    setState({ clusters: [...getState().clusters] });
+    if (name) {
+      cluster.locationName = name;
+      consolidateClustersState();
+    }
+  }
+}
+
+function consolidateClustersState() {
+  const state = getState();
+  const clusters = [...state.clusters];
+  let newRouteWaypoints = [...state.routeWaypoints];
+  let newStartClusterId = state.startClusterId;
+  let changed = false;
+
+  for (let i = 0; i < clusters.length; i++) {
+    const c1 = clusters[i];
+    if (!c1.locationName) continue;
+    
+    for (let j = i + 1; j < clusters.length; j++) {
+      const c2 = clusters[j];
+      if (c1.locationName === c2.locationName) {
+        c1.photos.push(...c2.photos);
+        c1.photos.sort((a,b) => {
+          if (!a.date && !b.date) return 0;
+          if (!a.date) return 1;
+          if (!b.date) return -1;
+          return a.date - b.date;
+        });
+        c1.center.lat = c1.photos.reduce((sum, p) => sum + p.lat, 0) / c1.photos.length;
+        c1.center.lon = c1.photos.reduce((sum, p) => sum + p.lon, 0) / c1.photos.length;
+        
+        const removedId = c2.id;
+        clusters.splice(j, 1);
+        
+        newRouteWaypoints = newRouteWaypoints.map(w => 
+          w.clusterId === removedId 
+            ? { ...w, clusterId: c1.id, lat: c1.center.lat, lon: c1.center.lon }
+            : w
+        );
+        
+        if (newStartClusterId === removedId) {
+          newStartClusterId = c1.id;
+        }
+        
+        changed = true;
+        j--;
+      }
+    }
+  }
+
+  if (changed) {
+    const deduplicatedRoute = [];
+    for (const w of newRouteWaypoints) {
+      if (deduplicatedRoute.length === 0 || deduplicatedRoute[deduplicatedRoute.length - 1].clusterId !== w.clusterId || !w.clusterId) {
+        deduplicatedRoute.push(w);
+      }
+    }
+    
+    clusters.sort((a, b) => {
+      const aDate = a.photos.find(p => p.date)?.date;
+      const bDate = b.photos.find(p => p.date)?.date;
+      if (!aDate && !bDate) return 0;
+      if (!aDate) return 1;
+      if (!bDate) return -1;
+      return aDate - bDate;
+    });
+
+    setState({ clusters, routeWaypoints: deduplicatedRoute, startClusterId: newStartClusterId });
+  } else {
+    setState({ clusters });
   }
 }
 
@@ -425,8 +491,13 @@ function renderSidebar(state) {
     header.style.background = 'var(--bg)';
     header.style.cursor = 'pointer';
     header.dataset.openCluster = cluster.id;
+    const thumbSrc = cluster.photos[0]?.thumbnail;
+    const thumbHtml = thumbSrc 
+      ? `<img class="photo-thumb" src="${thumbSrc}" alt="" style="border:2px solid var(--primary)"/>`
+      : `<div class="photo-thumb" style="border:2px solid var(--primary);display:flex;align-items:center;justify-content:center;background:#e2e8f0;font-size:18px">📍</div>`;
+    
     header.innerHTML = `
-      <img class="photo-thumb" src="${cluster.photos[0]?.thumbnail ?? ''}" alt="" style="border:2px solid var(--primary)"/>
+      ${thumbHtml}
       <div class="photo-item-info">
         <div class="photo-item-name" style="font-weight:600">
           📍 ${escHtml(cluster.locationName || 'Location')}
@@ -674,6 +745,7 @@ function movePhotoToCluster(photoId, targetClusterId) {
   const { located } = clusterPhotos(updatedPhotos);
   const route = buildRoute(located, getState().startClusterId);
   setState({ photos: updatedPhotos, clusters: located, routeWaypoints: route });
+  geocodeClusters(located);
 }
 
 /** Merge cluster-anchor waypoints with user-added intermediates. */

@@ -153,7 +153,7 @@ html,body{height:100%;font-family:system-ui,sans-serif;font-size:14px;color:var(
       <div class="photo-viewer">
         <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8249;</button>
         <div class="photo-main">
-          <img id="main-img" src="" alt="" />
+          <img id="main-img" alt="" />
           <div class="photo-meta" id="photo-meta-text"></div>
         </div>
         <button class="nav-btn" id="next-btn" onclick="navigate(1)">&#8250;</button>
