@@ -211,13 +211,20 @@ a { color: var(--primary); }
 }
 #sidebar-header h3 { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 #sidebar-toggle {
-  background: none; border: none; cursor: pointer;
+  position: absolute;
+  top: 12px;
+  right: 294px; /* 280 sidebar + 14 padding */
+  z-index: 1000;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
   font-size: 14px; color: var(--text-muted); padding: 4px 6px;
-  border-radius: 4px; transition: background .15s;
+  border-radius: 4px; transition: right .25s ease, background .15s;
 }
+#sidebar-toggle.closed { right: 14px; }
 #sidebar-toggle:hover { background: var(--bg); }
-#sidebar.sidebar-open #sidebar-toggle::after { content: '▶'; }
-#sidebar-toggle::after { content: '◀'; }
+#sidebar-toggle::after { content: '▶'; }
+#sidebar-toggle.closed::after { content: '◀'; }
 
 /* No-location panel */
 .no-location-header {
@@ -555,6 +562,7 @@ a { color: var(--primary); }
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 640px) {
   #sidebar.sidebar-open { width: 220px; }
+  #sidebar-toggle { right: 234px; }
   .photo-main { min-height: 220px; }
   #modal-photo-img { max-height: 280px; }
   #toolbar-actions .btn-sm:not(#export-btn) { display: none; }

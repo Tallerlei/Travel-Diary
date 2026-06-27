@@ -26,6 +26,8 @@ let state = {
   editingPhotoId: null,
   /** Waiting for user to click map to assign location to this photo ID */
   pendingLocationPhotoId: null,
+  /** ID of the cluster that acts as the start of the round trip */
+  startClusterId: null,
 };
 
 const subscribers = new Set();
