@@ -70,11 +70,11 @@
       <div id="map-layout">
         <div id="map-progress"></div>
         <div id="map"></div>
+        <button id="sidebar-toggle" title="Toggle sidebar"></button>
 
         <div id="sidebar" class="sidebar-open">
           <div id="sidebar-header">
             <h3>Photos <span id="photo-count-badge" class="badge">0</span></h3>
-            <button id="sidebar-toggle" title="Toggle sidebar">◀</button>
           </div>
           <div id="no-location-panel" hidden>
             <div class="no-location-header">
@@ -117,6 +117,7 @@
           <div class="modal-footer-actions">
             <button class="btn btn-sm btn-danger" id="remove-photo-btn">🗑️ Remove</button>
             <button class="btn btn-sm btn-secondary" id="edit-meta-btn">📝 Edit Info</button>
+            <button class="btn btn-sm btn-primary" id="set-start-btn">🏁 Set as Start</button>
             <div class="move-photo-wrap">
               <span>Move to:</span>
               <select id="move-photo-select">

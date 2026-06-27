@@ -97,10 +97,26 @@ export function clusterPhotos(photos, radiusKm = DEFAULT_RADIUS_KM) {
  * @param {Cluster[]} clusters
  * @returns {{lat:number, lon:number, clusterId:string}[]}
  */
-export function buildRoute(clusters) {
-  return clusters.map(c => ({
+export function buildRoute(clusters, startClusterId = null) {
+  if (clusters.length === 0) return [];
+  
+  let route = clusters.map(c => ({
     lat: c.center.lat,
     lon: c.center.lon,
     clusterId: c.id,
   }));
+
+  if (startClusterId) {
+    const idx = route.findIndex(w => w.clusterId === startClusterId);
+    if (idx !== -1 && idx !== 0) {
+      route = [...route.slice(idx), ...route.slice(0, idx)];
+    }
+  }
+  
+  // Close the loop for a round trip
+  if (route.length > 1) {
+    route.push({ ...route[0] }); // add a copy of the first point at the end
+  }
+
+  return route;
 }

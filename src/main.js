@@ -66,6 +66,7 @@ const prevBtn        = /** @type {HTMLButtonElement} */ (document.getElementById
 const nextBtn        = /** @type {HTMLButtonElement} */ (document.getElementById('photo-next'));
 const removePhotoBtn = /** @type {HTMLButtonElement} */ (document.getElementById('remove-photo-btn'));
 const editMetaBtn    = /** @type {HTMLButtonElement} */ (document.getElementById('edit-meta-btn'));
+const setStartBtn    = /** @type {HTMLButtonElement} */ (document.getElementById('set-start-btn'));
 const moveSelect     = /** @type {HTMLSelectElement} */ (document.getElementById('move-photo-select'));
 
 // Meta modal
@@ -101,7 +102,7 @@ initMap('map', {
       const clusters = s.clusters.map(c =>
         c.id === idxOrClusterId ? { ...c, center: { lat, lon } } : c
       );
-      const route = buildRoute(clusters);
+      const route = buildRoute(clusters, s.startClusterId);
       setState({ clusters, routeWaypoints: route });
     } else {
       // waypoint marker drag
@@ -126,6 +127,9 @@ initMap('map', {
     if (s.pendingLocationPhotoId) {
       assignLocationToPhoto(s.pendingLocationPhotoId, lat, lon);
     }
+  },
+  onPhotoDrop: (photoId, lat, lon) => {
+    assignLocationToPhoto(photoId, lat, lon);
   },
 });
 
@@ -246,6 +250,12 @@ async function processFiles(files) {
     }
 
     try {
+      const isDuplicate = getState().photos.some(p => p.name === file.name && p.fileSize === file.size);
+      if (isDuplicate) {
+        warnings.push(`${file.name}: Duplicate photo`);
+        continue;
+      }
+
       const dataUrl = await readFileAsDataURL(file);
       const thumbnail = await generateThumbnail(dataUrl, 200);
       const exif = await parseExif(file);
@@ -254,6 +264,7 @@ async function processFiles(files) {
       const photo = {
         id: crypto.randomUUID(),
         name: file.name,
+        fileSize: file.size,
         dataUrl,
         thumbnail,
         lat: exif?.lat ?? null,
@@ -297,7 +308,7 @@ async function processFiles(files) {
   // Merge with existing photos
   const allPhotos = [...getState().photos, ...newPhotos];
   const { located } = clusterPhotos(allPhotos);
-  const route = buildRoute(located);
+  const route = buildRoute(located, getState().startClusterId);
 
   setState({
     photos: allPhotos,
@@ -379,6 +390,11 @@ function renderSidebar(state) {
     unlocated.forEach(p => {
       const item = document.createElement('div');
       item.className = 'photo-item no-loc';
+      item.draggable = true;
+      item.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', p.id);
+        e.dataTransfer.effectAllowed = 'move';
+      });
       item.innerHTML = `
         <img class="photo-thumb" src="${p.thumbnail}" alt="" />
         <div class="photo-item-info">
@@ -386,6 +402,10 @@ function renderSidebar(state) {
           <div class="photo-item-meta">No location · <button class="inline-link" data-add-loc="${p.id}">Add location</button></div>
         </div>
         <button class="photo-item-remove" data-remove="${p.id}" title="Remove">✕</button>`;
+      item.addEventListener('click', e => {
+        if (e.target.closest('[data-remove]') || e.target.closest('[data-add-loc]')) return;
+        openPhotoModal('unlocated', p.id);
+      });
       noLocList.appendChild(item);
     });
   } else {
@@ -453,20 +473,33 @@ function handleSidebarClick(e) {
 // Photo modal
 // ─────────────────────────────────────────────────────────
 function openPhotoModal(clusterId, photoId) {
-  const { clusters } = getState();
-  const cluster = clusters.find(c => c.id === clusterId);
-  if (!cluster) return;
+  const { clusters, photos } = getState();
+  
+  if (clusterId === 'unlocated') {
+    const unlocated = photos.filter(p => p.lat == null || p.lon == null);
+    activeClusterPhotos = unlocated;
+    activePhotoIdx = photoId
+      ? Math.max(0, unlocated.findIndex(p => p.id === photoId))
+      : 0;
+    modalLocName.textContent = 'No Location';
+    modalDates.textContent = '';
+    setStartBtn.hidden = true;
+  } else {
+    const cluster = clusters.find(c => c.id === clusterId);
+    if (!cluster) return;
 
-  activeClusterPhotos = cluster.photos;
-  activePhotoIdx = photoId
-    ? Math.max(0, cluster.photos.findIndex(p => p.id === photoId))
-    : 0;
+    activeClusterPhotos = cluster.photos;
+    activePhotoIdx = photoId
+      ? Math.max(0, cluster.photos.findIndex(p => p.id === photoId))
+      : 0;
 
-  modalLocName.textContent = cluster.locationName || 'Location';
-  const dates = cluster.photos.map(p => p.date).filter(Boolean).sort((a, b) => a - b);
-  modalDates.textContent = dates.length
-    ? `${formatDate(dates[0])}${dates.length > 1 ? ' – ' + formatDate(dates[dates.length - 1]) : ''}`
-    : '';
+    modalLocName.textContent = cluster.locationName || 'Location';
+    const dates = cluster.photos.map(p => p.date).filter(Boolean).sort((a, b) => a - b);
+    modalDates.textContent = dates.length
+      ? `${formatDate(dates[0])}${dates.length > 1 ? ' – ' + formatDate(dates[dates.length - 1]) : ''}`
+      : '';
+    setStartBtn.hidden = false;
+  }
 
   buildModalThumbs();
   showModalPhoto(activePhotoIdx);
@@ -557,6 +590,19 @@ editMetaBtn.addEventListener('click', () => {
   openMetaEditor(photo.id);
 });
 
+// Set as Start Point
+setStartBtn.addEventListener('click', () => {
+  const clusterId = getState().activeClusterId;
+  if (!clusterId || clusterId === 'unlocated') return;
+  
+  setState({ startClusterId: clusterId });
+  const { clusters } = getState();
+  const route = buildRoute(clusters, clusterId);
+  setState({ routeWaypoints: route });
+  renderRoute(route);
+  showToast('Start point updated');
+});
+
 // Move to other cluster
 moveSelect.addEventListener('change', () => {
   const targetClusterId = moveSelect.value;
@@ -597,7 +643,7 @@ function removePhoto(photoId) {
 
   // Preserve user-edited route waypoints that aren't cluster anchors
   const extraWaypoints = s.routeWaypoints.filter(w => !w.clusterId);
-  const clusterWaypoints = buildRoute(located);
+  const clusterWaypoints = buildRoute(located, getState().startClusterId);
   const route = mergeWaypoints(clusterWaypoints, extraWaypoints);
 
   setState({ photos: allPhotos, clusters: located, routeWaypoints: route });
@@ -626,7 +672,7 @@ function movePhotoToCluster(photoId, targetClusterId) {
   );
 
   const { located } = clusterPhotos(updatedPhotos);
-  const route = buildRoute(located);
+  const route = buildRoute(located, getState().startClusterId);
   setState({ photos: updatedPhotos, clusters: located, routeWaypoints: route });
 }
 
@@ -680,7 +726,7 @@ function applyPhotoMeta(photoId, { date, lat, lon }) {
     p.id === photoId ? { ...p, date, lat, lon } : p
   );
   const { located } = clusterPhotos(updatedPhotos);
-  const route = buildRoute(located);
+  const route = buildRoute(located, getState().startClusterId);
   setState({ photos: updatedPhotos, clusters: located, routeWaypoints: route });
   geocodeClusters(located.filter(c => !c.locationName));
   setTimeout(() => fitToRoute(getState().clusters), 100);
@@ -765,6 +811,7 @@ document.getElementById('export-btn').addEventListener('click', async () => {
 // Sidebar toggle
 sidebarToggle.addEventListener('click', () => {
   sidebar.classList.toggle('sidebar-open');
+  sidebarToggle.classList.toggle('closed');
   setTimeout(() => getMap()?.invalidateSize(), 280);
 });
 

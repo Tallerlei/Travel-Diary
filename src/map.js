@@ -79,6 +79,19 @@ export function initMap(containerId, callbacks) {
   map.on('click', e => {
     onMapClick(e.latlng.lat, e.latlng.lng);
   });
+
+  const container = map.getContainer();
+  container.addEventListener('dragover', e => {
+    e.preventDefault();
+  });
+  container.addEventListener('drop', e => {
+    e.preventDefault();
+    const photoId = e.dataTransfer.getData('text/plain');
+    if (photoId && callbacks.onPhotoDrop) {
+      const latlng = map.mouseEventToLatLng(e);
+      callbacks.onPhotoDrop(photoId, latlng.lat, latlng.lng);
+    }
+  });
 }
 
 /** Return the Leaflet map instance (may be null before initMap). */
