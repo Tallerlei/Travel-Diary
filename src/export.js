@@ -1,3 +1,5 @@
+import JSZip from 'jszip';
+
 /**
  * Standalone HTML exporter.
  *
@@ -23,27 +25,48 @@
 export async function exportDiary(diaryData) {
   const { tripTitle, clusters, routeWaypoints, unlocatedPhotos = [] } = diaryData;
 
-  // Serialise clusters (include full dataUrl for photos)
-  const serialisedClusters = clusters.map(c => ({
+  const zip = new JSZip();
+  const images = zip.folder('images');
+
+  let imgCounter = 0;
+  const saveImage = (base64Str, prefix) => {
+    if (!base64Str) return null;
+    const isDataUrl = base64Str.startsWith('data:');
+    if (!isDataUrl) return base64Str; // fallback if it's already a path
+
+    const parts = base64Str.split(',');
+    const base64Data = parts[1];
+    let ext = 'jpg';
+    const mimeMatch = parts[0].match(/data:image\/(\w+);/);
+    if (mimeMatch) {
+      ext = mimeMatch[1] === 'jpeg' ? 'jpg' : mimeMatch[1];
+    }
+    const filename = `${prefix}_${imgCounter++}.${ext}`;
+    images.file(filename, base64Data, { base64: true });
+    return `images/${filename}`;
+  };
+
+  // Serialise clusters (save images to zip and keep relative path)
+  const serialisedClusters = clusters.map((c, cIdx) => ({
     id: c.id,
     center: c.center,
     locationName: c.locationName || '',
-    photos: c.photos.map(p => ({
+    photos: c.photos.map((p, pIdx) => ({
       id: p.id,
       name: p.name,
-      dataUrl: p.dataUrl,
-      thumbnail: p.thumbnail,
+      dataUrl: saveImage(p.dataUrl, `c${cIdx}_p${pIdx}`),
+      thumbnail: saveImage(p.thumbnail, `c${cIdx}_p${pIdx}_thumb`),
       date: p.date ? p.date.toISOString() : null,
       lat: p.lat,
       lon: p.lon,
     })),
   }));
 
-  const serialisedUnlocated = unlocatedPhotos.map(p => ({
+  const serialisedUnlocated = unlocatedPhotos.map((p, pIdx) => ({
     id: p.id,
     name: p.name,
-    dataUrl: p.dataUrl,
-    thumbnail: p.thumbnail,
+    dataUrl: saveImage(p.dataUrl, `u${pIdx}`),
+    thumbnail: saveImage(p.thumbnail, `u${pIdx}_thumb`),
     date: p.date ? p.date.toISOString() : null,
   }));
 
@@ -55,7 +78,10 @@ export async function exportDiary(diaryData) {
   }).replace(/</g, '\\u003c');
 
   const html = buildViewerHTML(dataJSON);
-  downloadFile(html, `${slugify(tripTitle)}.html`, 'text/html');
+  zip.file('index.html', html);
+
+  const content = await zip.generateAsync({ type: 'blob' });
+  downloadFile(content, `${slugify(tripTitle)}.zip`, 'application/zip');
 }
 
 // ─────────────────────────────────────────────────────────
@@ -317,12 +343,12 @@ document.addEventListener('keydown',e=>{
 
 /**
  * Trigger a file download in the browser.
- * @param {string} content
+ * @param {string|Blob} content
  * @param {string} filename
  * @param {string} mimeType
  */
 function downloadFile(content, filename, mimeType) {
-  const blob = new Blob([content], { type: mimeType });
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
