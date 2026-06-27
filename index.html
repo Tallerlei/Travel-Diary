@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Travel Diary</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ═══════════════════════════════════════ UPLOAD SCREEN ═══ -->
+    <div id="upload-screen" class="screen active">
+      <div class="upload-hero">
+        <div class="upload-hero-text">
+          <div class="logo">✈️</div>
+          <h1>Travel Diary</h1>
+          <p class="tagline">Transform your travel photos into an interactive journey map</p>
+        </div>
+
+        <div id="drop-zone">
+          <input type="file" id="file-input" multiple accept="image/*" hidden />
+          <div class="drop-zone-inner">
+            <span class="drop-icon">📸</span>
+            <h2>Drop your travel photos here</h2>
+            <p>Photos with GPS data will be placed on the map automatically</p>
+            <div class="upload-options">
+              <button class="btn btn-primary" id="local-btn">
+                <span>📁</span> Choose from Device
+              </button>
+              <button class="btn btn-secondary" id="google-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                Google Photos
+              </button>
+              <button class="btn btn-secondary" id="url-btn">
+                <span>🔗</span> From URL
+              </button>
+              <button class="btn btn-secondary" id="paste-btn">
+                <span>📋</span> Paste Image
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="upload-progress" hidden>
+          <div class="progress-bar"><div id="progress-fill"></div></div>
+          <p id="progress-text">Processing photos…</p>
+        </div>
+
+        <div id="upload-warnings" hidden></div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════ MAP SCREEN ═══ -->
+    <div id="map-screen" class="screen">
+      <div id="toolbar">
+        <div id="trip-title-area">
+          <h1 id="trip-title" contenteditable="true" spellcheck="false">My Travel Diary</h1>
+          <span class="edit-hint">click to rename</span>
+        </div>
+        <div id="toolbar-actions">
+          <button class="btn btn-sm btn-secondary" id="add-more-btn">📸 Add Photos</button>
+          <button class="btn btn-sm btn-secondary" id="toggle-edit-btn" title="Toggle route editing">✏️ Edit Route</button>
+          <button class="btn btn-sm btn-secondary" id="fit-map-btn" title="Fit map to route">🗺️ Fit Map</button>
+          <button class="btn btn-sm btn-primary" id="export-btn">⬇️ Export Diary</button>
+        </div>
+      </div>
+
+      <div id="map-layout">
+        <div id="map-progress"></div>
+        <div id="map"></div>
+
+        <div id="sidebar" class="sidebar-open">
+          <div id="sidebar-header">
+            <h3>Photos <span id="photo-count-badge" class="badge">0</span></h3>
+            <button id="sidebar-toggle" title="Toggle sidebar">◀</button>
+          </div>
+          <div id="no-location-panel" hidden>
+            <div class="no-location-header">
+              <span>📍 No Location Data</span>
+              <span class="badge" id="no-loc-count">0</span>
+            </div>
+            <div id="no-location-list"></div>
+          </div>
+          <div id="photo-list"></div>
+        </div>
+      </div>
+
+      <div id="edit-mode-banner" hidden>
+        <span>✏️ Route Edit Mode — Drag markers to reposition · Click route to add waypoint · </span>
+        <button id="done-edit-btn" class="btn btn-sm btn-primary">Done</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ PHOTO POPUP MODAL ═══ -->
+    <div id="photo-modal" class="modal" hidden>
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-box photo-modal-box">
+        <div class="modal-header">
+          <div class="modal-title-area">
+            <h2 id="modal-location-name">Location</h2>
+            <p id="modal-dates" class="modal-subtitle"></p>
+          </div>
+          <button class="btn-icon close-btn" data-close>✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="photo-viewer">
+            <button class="photo-nav" id="photo-prev" title="Previous">&#8249;</button>
+            <div class="photo-main">
+              <img id="modal-photo-img" src="" alt="" />
+              <div id="modal-photo-meta"></div>
+            </div>
+            <button class="photo-nav" id="photo-next" title="Next">&#8250;</button>
+          </div>
+          <div id="modal-thumbnails"></div>
+          <div class="modal-footer-actions">
+            <button class="btn btn-sm btn-danger" id="remove-photo-btn">🗑️ Remove</button>
+            <button class="btn btn-sm btn-secondary" id="edit-meta-btn">📝 Edit Info</button>
+            <div class="move-photo-wrap">
+              <span>Move to:</span>
+              <select id="move-photo-select">
+                <option value="">— select location —</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ META EDITOR MODAL ═══ -->
+    <div id="meta-modal" class="modal" hidden>
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-box narrow-box">
+        <div class="modal-header">
+          <h2 id="meta-modal-title">Edit Photo Info</h2>
+          <button class="btn-icon close-btn" data-close>✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="meta-photo-preview"></div>
+          <form id="meta-form">
+            <label class="form-label">
+              Date &amp; Time
+              <input type="datetime-local" id="meta-date" />
+            </label>
+            <label class="form-label">
+              Latitude
+              <input type="number" id="meta-lat" step="0.000001" min="-90" max="90" placeholder="e.g. 48.8566" />
+            </label>
+            <label class="form-label">
+              Longitude
+              <input type="number" id="meta-lon" step="0.000001" min="-180" max="180" placeholder="e.g. 2.3522" />
+            </label>
+            <div class="set-on-map-hint">
+              <span>💡 Or</span>
+              <button type="button" class="btn btn-sm btn-secondary" id="pick-on-map-btn">📍 Pick on Map</button>
+              <span>to set location by clicking the map</span>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save</button>
+              <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════ URL INPUT MODAL ═══ -->
+    <div id="url-modal" class="modal" hidden>
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-box narrow-box">
+        <div class="modal-header">
+          <h2>Add Photo from URL</h2>
+          <button class="btn-icon close-btn" data-close>✕</button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label">
+            Image URL
+            <input type="url" id="url-input" placeholder="https://example.com/photo.jpg" />
+          </label>
+          <div class="form-actions">
+            <button class="btn btn-primary" id="url-load-btn">Add Photo</button>
+            <button class="btn btn-secondary" data-close>Cancel</button>
+          </div>
+          <p id="url-error" class="error-text" hidden></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ GOOGLE PHOTOS MODAL ═══ -->
+    <div id="google-modal" class="modal" hidden>
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-box narrow-box">
+        <div class="modal-header">
+          <h2>Google Photos</h2>
+          <button class="btn-icon close-btn" data-close>✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="google-photos-info">
+            <div class="info-icon">📱</div>
+            <p>To add photos from Google Photos:</p>
+            <ol>
+              <li>Open <a href="https://photos.google.com" target="_blank" rel="noopener">Google Photos</a> in another tab</li>
+              <li>Select the photos you want</li>
+              <li>Download them to your device</li>
+              <li>Then use <strong>Choose from Device</strong> to upload</li>
+            </ol>
+            <p class="small-text">Alternatively, use the Google Takeout service to export albums.</p>
+          </div>
+          <div class="form-actions">
+            <a href="https://photos.google.com" target="_blank" rel="noopener" class="btn btn-primary">Open Google Photos ↗</a>
+            <button class="btn btn-secondary" data-close>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════ PICK-ON-MAP OVERLAY ═══ -->
+    <div id="pick-on-map-overlay" hidden>
+      <div class="pick-overlay-inner">
+        <span>📍 Click anywhere on the map to set the photo location</span>
+        <button id="cancel-pick-btn" class="btn btn-sm btn-secondary">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ TOAST ═══ -->
+    <div id="toast"></div>
+
+  </div><!-- #app -->
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
