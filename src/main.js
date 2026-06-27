@@ -281,9 +281,14 @@ async function processFiles(files) {
       showToast(`⚠️ ${warnings.length} photo${warnings.length > 1 ? 's' : ''} could not be processed`);
     } else {
       uploadWarnings.hidden = false;
-      uploadWarnings.innerHTML =
-        `<strong>⚠️ Some photos could not be processed:</strong><br>` +
-        warnings.map(w => `• ${w}`).join('<br>');
+      uploadWarnings.textContent = '';
+      const header = document.createElement('strong');
+      header.textContent = '⚠️ Some photos could not be processed:';
+      uploadWarnings.appendChild(header);
+      warnings.forEach(w => {
+        uploadWarnings.appendChild(document.createElement('br'));
+        uploadWarnings.appendChild(document.createTextNode(`• ${w}`));
+      });
     }
   }
 
@@ -325,9 +330,12 @@ async function processFiles(files) {
       showToast(`📍 ${noLoc} photo${noLoc > 1 ? 's have' : ' has'} no GPS data — use the sidebar to add locations`);
     } else if (noLoc === newPhotos.length) {
       uploadWarnings.hidden = false;
-      const existing = uploadWarnings.hidden ? '' : uploadWarnings.innerHTML + '<br>';
-      uploadWarnings.innerHTML = existing +
-        `⚠️ None of the ${newPhotos.length} photo${newPhotos.length > 1 ? 's' : ''} had GPS data. Use the sidebar to add location info.`;
+      if (uploadWarnings.childNodes.length > 0) {
+        uploadWarnings.appendChild(document.createElement('br'));
+      }
+      uploadWarnings.appendChild(document.createTextNode(
+        `⚠️ None of the ${newPhotos.length} photo${newPhotos.length > 1 ? 's' : ''} had GPS data. Use the sidebar to add location info.`
+      ));
     }
   }
 }
