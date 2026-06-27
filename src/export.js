@@ -52,7 +52,7 @@ export async function exportDiary(diaryData) {
     clusters: serialisedClusters,
     routeWaypoints,
     unlocatedPhotos: serialisedUnlocated,
-  });
+  }).replace(/</g, '\\u003c');
 
   const html = buildViewerHTML(dataJSON);
   downloadFile(html, `${slugify(tripTitle)}.html`, 'text/html');
