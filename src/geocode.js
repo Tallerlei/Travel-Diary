@@ -28,7 +28,7 @@ export async function reverseGeocode(lat, lon) {
   try {
     const url =
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}` +
-      `&format=json&zoom=12&addressdetails=1`;
+      `&format=json&zoom=18&addressdetails=1`;
 
     const resp = await fetch(url, {
       headers: { 'Accept-Language': navigator.language || 'en' },
@@ -38,9 +38,14 @@ export async function reverseGeocode(lat, lon) {
 
     const addr = data.address || {};
     const name =
+      data.name ||
+      addr.amenity ||
+      addr.tourism ||
+      addr.shop ||
+      addr.leisure ||
+      addr.village ||
       addr.city ||
       addr.town ||
-      addr.village ||
       addr.hamlet ||
       addr.municipality ||
       addr.county ||

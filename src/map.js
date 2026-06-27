@@ -88,7 +88,17 @@ export function initMap(containerId, callbacks) {
     e.preventDefault();
     const photoId = e.dataTransfer.getData('text/plain');
     if (photoId && callbacks.onPhotoDrop) {
-      const latlng = map.mouseEventToLatLng(e);
+      let latlng = null;
+      const markerEl = e.target.closest('.cluster-marker');
+      if (markerEl) {
+        const bubble = markerEl.querySelector('.cluster-bubble') || markerEl;
+        const cid = bubble.dataset.clusterId || markerEl.dataset?.clusterId;
+        if (cid) {
+          const marker = clusterMarkers.get(cid);
+          if (marker) latlng = marker.getLatLng();
+        }
+      }
+      if (!latlng) latlng = map.mouseEventToLatLng(e);
       callbacks.onPhotoDrop(photoId, latlng.lat, latlng.lng);
     }
   });
@@ -161,7 +171,7 @@ function clusterIcon(cluster) {
   const thumb = cluster.photos[0]?.thumbnail ?? '';
   const count = cluster.photos.length;
   const html = `
-    <div class="cluster-bubble">
+    <div class="cluster-bubble" data-cluster-id="${cluster.id}">
       ${thumb ? `<img src="${thumb}" alt="" />` : '<span style="font-size:22px;display:flex;align-items:center;justify-content:center;height:100%">📸</span>'}
       ${count > 1 ? `<span class="cluster-count">×${count}</span>` : ''}
     </div>`;

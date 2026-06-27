@@ -183,6 +183,7 @@ a { color: var(--primary); }
 /* ── Map Layout ──────────────────────────────────────────── */
 #map-layout {
   display: flex;
+  position: relative;
   height: calc(100vh - var(--toolbar-h));
   overflow: hidden;
 }
@@ -218,11 +219,15 @@ a { color: var(--primary); }
   background: var(--surface);
   border: 1px solid var(--border);
   cursor: pointer;
-  font-size: 14px; color: var(--text-muted); padding: 4px 6px;
-  border-radius: 4px; transition: right .25s ease, background .15s;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  border-radius: 50%; transition: right .25s ease, background .15s, transform .1s;
+  box-shadow: var(--shadow);
 }
 #sidebar-toggle.closed { right: 14px; }
-#sidebar-toggle:hover { background: var(--bg); }
+#sidebar-toggle:hover { background: var(--bg); transform: scale(1.05); }
+#sidebar-toggle:active { transform: scale(0.95); }
 #sidebar-toggle::after { content: '▶'; }
 #sidebar-toggle.closed::after { content: '◀'; }
 
